@@ -1,0 +1,46 @@
+#cloud-config
+
+final_message: "The system is finally up, after $UPTIME seconds"
+
+# We add Conda using RPM/APT
+yum_repos:
+  conda:
+    name: Conda
+    baseurl: https://repo.anaconda.com/pkgs/misc/rpmrepo/conda
+    enabled: true
+    gpgcheck: true
+    gpgkey: https://repo.anaconda.com/pkgs/misc/gpgkeys/anaconda.asc
+
+packages:
+  - conda
+#package_upgrade: true
+
+write_files:
+  - path: /etc/sysconfig/jupyterhub-singleuser
+    encoding: b64
+    content: ${environment_b64}
+
+  - path: /etc/systemd/system/jupyterhub-singleuser.service
+    content: |
+      # Generated, do not modify
+      [Unit]
+      Description=The JupyterHub Singleuser
+      After=network.target remote-fs.target nss-lookup.target
+
+      [Service]
+      Type=simple
+      User=centos
+      EnvironmentFile=/etc/sysconfig/jupyterhub-singleuser
+      ExecStart=/opt/conda/bin/conda-exec -- base jupyter-labhub --ip ${ip} --port ${port} --notebook-dir /home/centos
+      KillSignal=SIGKILL
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - ln -s /opt/conda/etc/profile.d/conda.{csh,sh} /etc/profile.d/
+  - |
+    source /etc/profile.d/conda.sh
+    conda install -n base -qy conda-forge::conda-exec nb_conda_kernels jupyterlab jupyterhub
+    systemctl daemon-reload
+    systemctl start jupyterhub-singleuser

@@ -8,7 +8,6 @@ data "triton_image" "base" {
 locals {
   env_override = {
     PATH = "/bin:/usr/bin:/sbin:/usr/sbin",
-    JUPYTERHUB_API_URL = "https://7cea9388.ngrok.io/hub/api"
   }
   merged_env = "${merge(var.env, local.env_override)}"
   env_keys = "${keys(local.merged_env)}"
@@ -29,11 +28,13 @@ data "template_file" "cloud_config" {
     ip = "0.0.0.0"
     port = "${local.jupyter_port}"
     environment_b64 = "${base64encode(join("\n",data.template_file.environment.*.rendered))}"
+
+    user = "${local.merged_env["JUPYTERHUB_USER"]}"
   }
 }
 
 resource "triton_machine" "self" {
-  name    = "jupyter-hub-sodre"
+  name    = "${local.merged_env["JUPYTERHUB_CLIENT_ID"]}"
   package = "sample-2G"
   image   = "${data.triton_image.base.id}"
 
